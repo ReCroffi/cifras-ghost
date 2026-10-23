@@ -1,6 +1,6 @@
 import unittest
 
-from ghost_wires.cifras import deslocar_letra
+from ghost_wires.cifras import cesar, deslocar_letra
 
 
 class TestDeslocarLetra(unittest.TestCase):
@@ -31,6 +31,24 @@ class TestDeslocarLetra(unittest.TestCase):
         for letra in ("é", "ç", "Ã", "ü"):
             with self.subTest(letra=letra):
                 self.assertEqual(deslocar_letra(letra, 3), letra)
+
+
+class TestCesar(unittest.TestCase):
+    def test_deslocar_e_desfazer_retorna_o_texto_original(self):
+        texto = "Hello, World! Ãç"
+        for n in (0, 1, -1, 13, 26, -26, 100, -100):
+            with self.subTest(n=n):
+                deslocado = cesar(texto, n)
+                self.assertEqual(cesar(deslocado, -n), texto)
+
+    def test_rot13_aplicado_duas_vezes_retorna_o_original(self):
+        texto = "Hello, World! Ãç"
+        self.assertEqual(cesar(cesar(texto, 13), 13), texto)
+
+    def test_desloca_todas_as_letras(self):
+        texto = "Hello, World!"
+        deslocado = "Khoor, Zruog!"
+        self.assertEqual(cesar(texto, 3), deslocado)
 
 
 if __name__ == "__main__":
