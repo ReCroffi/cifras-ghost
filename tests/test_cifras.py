@@ -1,6 +1,6 @@
 import unittest
 
-from ghost_wires.cifras import cesar, deslocar_letra
+from ghost_wires.cifras import cesar, deslocar_letra, forca_bruta_cesar
 
 
 class TestDeslocarLetra(unittest.TestCase):
@@ -49,6 +49,28 @@ class TestCesar(unittest.TestCase):
         texto = "Hello, World!"
         deslocado = "Khoor, Zruog!"
         self.assertEqual(cesar(texto, 3), deslocado)
+
+
+class TestForcaBruta(unittest.TestCase):
+    def test_ordena_todas_as_tentativas_pela_nota_e_preserva_o_deslocamento(self):
+        texto = "this is the"
+        cifrado = cesar(texto, 3)
+
+        tentativas = forca_bruta_cesar(cifrado)
+        notas = [nota for nota, _, _ in tentativas]
+
+        self.assertEqual(len(tentativas), 26)
+        self.assertEqual(tentativas[0], (3, 3, texto))
+        self.assertEqual(notas, sorted(notas, reverse=True))
+
+    def test_texto_sem_palavras_comuns_mantem_nota_zero(self):
+        texto = "quick brown fox"
+        cifrado = cesar(texto, 3)
+
+        tentativas = forca_bruta_cesar(cifrado)
+
+        self.assertTrue(all(nota == 0 for nota, _, _ in tentativas))
+        self.assertEqual(tentativas[0], (0, 0, cifrado))
 
 
 if __name__ == "__main__":

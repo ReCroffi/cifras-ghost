@@ -1,3 +1,6 @@
+import string
+
+
 def deslocar_letra(c: str, n: int) -> str:
     """
     Desloca uma letra c por n posições no alfabeto.
@@ -37,3 +40,57 @@ def cesar(texto: str, n: int) -> str:
     str: O texto cifrado.
     """
     return "".join(deslocar_letra(c, n) for c in texto)
+
+
+PALAVRAS_COMUNS_INGLES = {
+    "a",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "but",
+    "for",
+    "from",
+    "have",
+    "he",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "that",
+    "the",
+    "this",
+    "to",
+    "was",
+    "we",
+    "you",
+}
+
+
+def forca_bruta_cesar(texto: str) -> list[tuple[int, int, str]]:
+    """
+    Tenta decifrar um texto cifrado com a cifra de César, testando todas as
+    26 possibilidades de deslocamento. Cada resultado é acompanhado de uma
+    nota baseada na quantidade de palavras comuns em inglês e os resultados
+    são ordenados da melhor tentativa para a pior.
+
+    Parâmetros:
+    texto (str): O texto cifrado.
+
+    Retorna:
+    list[tuple[int, int, str]]: Uma lista de triplas (nota, n, tentativa),
+        ordenada pela nota em ordem decrescente.
+    """
+    tentativas = []
+    for n in range(26):
+        tentativa = cesar(texto, -n)
+        palavras = (
+            palavra.strip(string.punctuation).lower()
+            for palavra in tentativa.split()
+        )
+        nota = sum(palavra in PALAVRAS_COMUNS_INGLES for palavra in palavras)
+        tentativas.append((nota, n, tentativa))
+
+    return sorted(tentativas, key=lambda tentativa: tentativa[0], reverse=True)
