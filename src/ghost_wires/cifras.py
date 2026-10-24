@@ -520,11 +520,8 @@ def preparar_digramas(texto: str) -> list[str]:
     indice = 0
     while indice < len(texto_limpo):
         primeira = texto_limpo[indice]
-        if indice + 1 == len(texto_limpo):
-            filler = "Q" if primeira == "X" else "X"
-            digramas.append(primeira + filler)
-            indice += 1
-        elif primeira == texto_limpo[indice + 1]:
+        segunda_disponivel = indice + 1 < len(texto_limpo)
+        if not segunda_disponivel or primeira == texto_limpo[indice + 1]:
             filler = "Q" if primeira == "X" else "X"
             digramas.append(primeira + filler)
             indice += 1
