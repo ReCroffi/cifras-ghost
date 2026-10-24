@@ -1,15 +1,23 @@
 import unittest
+from io import StringIO
+from unittest.mock import patch
 
 from ghost_wires.cifras import (
     cesar,
+    base64_para_texto,
+    base36_para_inteiro,
     deslocar_letra,
     forca_bruta_cesar,
+    morse_para_texto,
+    texto_para_base64,
+    texto_para_morse,
+    MORSE,
     numeros_para_texto,
     texto_para_numeros,
     vigenere,
-    base36_para_inteiro,
     inteiro_para_base36,
 )
+from ghost_wires import main
 
 
 class TestDeslocarLetra(unittest.TestCase):
@@ -214,6 +222,108 @@ class TestBase36(unittest.TestCase):
             base36_para_inteiro(cesar(codificado, -3)),
             12345,
         )
+
+
+class TestBase64(unittest.TestCase):
+    def test_codifica_e_decodifica_texto(self):
+        texto = "Olá, mundo! こんにちは"
+
+        self.assertEqual(base64_para_texto(texto_para_base64(texto)), texto)
+
+    def test_rejeita_padding_invalido(self):
+        with self.assertRaises(ValueError):
+            base64_para_texto("SGVsbG8")
+
+    def test_rejeita_entrada_base64_invalida(self):
+        for entrada in ("!!!!", "é", "/w==", "SGVsbG8=\n"):
+            with self.subTest(entrada=entrada), self.assertRaises(ValueError):
+                base64_para_texto(entrada)
+
+
+class TestMorse(unittest.TestCase):
+    def test_codifica_e_decodifica_texto_com_palavras(self):
+        texto = "SOS 2026!"
+
+        codificado = texto_para_morse(texto)
+        self.assertEqual(morse_para_texto(codificado), texto)
+        self.assertEqual(codificado, "... --- ... / ..--- ----- ..--- -.... -.-.--")
+
+    def test_tabela_cobre_letras_digitos_e_pontuacao(self):
+        self.assertEqual(set("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), set(MORSE) & set("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+        self.assertTrue(set("0123456789") <= MORSE.keys())
+        self.assertTrue(set(".,?!") <= MORSE.keys())
+
+    def test_tabela_nao_tem_codigos_repetidos(self):
+        self.assertEqual(len(MORSE), len(set(MORSE.values())))
+
+    def test_decodifica_letras_minusculas_como_maiusculas(self):
+        self.assertEqual(morse_para_texto(texto_para_morse("sos")), "SOS")
+
+    def test_rejeita_caractere_fora_da_tabela(self):
+        for caractere in ("\u00df", "\u017f", "\u0131", "\u00e9"):
+            with self.subTest(caractere=caractere), self.assertRaisesRegex(
+                ValueError, "não suportado"
+            ):
+                texto_para_morse(caractere)
+
+    def test_rejeita_codigo_morse_desconhecido(self):
+        with self.assertRaisesRegex(ValueError, "Código Morse inválido"):
+            morse_para_texto(".... .----..")
+
+
+class TestLinhaDeComando(unittest.TestCase):
+    def test_help_lista_todos_os_subcomandos(self):
+        saida = StringIO()
+        with patch("sys.stdout", saida):
+            codigo = main(["--help"])
+
+        self.assertEqual(codigo, 0)
+        for comando in (
+            "cesar",
+            "forca-bruta",
+            "vigenere",
+            "texto-para-numeros",
+            "numeros-para-texto",
+            "inteiro-para-base36",
+            "base36-para-inteiro",
+            "texto-para-base64",
+            "base64-para-texto",
+            "texto-para-morse",
+            "morse-para-texto",
+        ):
+            self.assertIn(comando, saida.getvalue())
+
+    def test_executa_com_texto_do_argumento(self):
+        saida = StringIO()
+        with patch("sys.stdout", saida):
+            codigo = main(["cesar", "-n", "3", "bom dia"])
+
+        self.assertEqual(codigo, 0)
+        self.assertEqual(saida.getvalue(), "erp gld\n")
+
+    def test_executa_com_texto_da_entrada_padrao(self):
+        saida = StringIO()
+        with patch("sys.stdin", StringIO("bom dia")), patch("sys.stdout", saida):
+            codigo = main(["cesar", "-n", "3"])
+
+        self.assertEqual(codigo, 0)
+        self.assertEqual(saida.getvalue(), "erp gld\n")
+
+    def test_erro_de_uso_vai_para_stderr_e_retorna_codigo_diferente_de_zero(self):
+        erro = StringIO()
+        with patch("sys.stderr", erro):
+            codigo = main(["texto-para-numeros", "--base", "3", "A"])
+
+        self.assertNotEqual(codigo, 0)
+        self.assertIn("base", erro.getvalue())
+
+        erro.seek(0)
+        erro.truncate(0)
+        with patch("sys.stderr", erro):
+            codigo = main(["vigenere", "--chave", "", "A"])
+
+        self.assertNotEqual(codigo, 0)
+        self.assertIn("vazia", erro.getvalue())
 
 
 if __name__ == "__main__":

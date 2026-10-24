@@ -1,3 +1,5 @@
+import base64
+import binascii
 import string
 
 
@@ -261,3 +263,149 @@ def base36_para_inteiro(s: str) -> int:
             raise ValueError(f"Caractere inválido {caractere!r} na base 36.")
 
     return n
+
+
+def texto_para_base64(texto: str) -> str:
+    """
+    Codifica um texto em Base64 usando UTF-8.
+
+    Parâmetros:
+    texto (str): O texto a ser codificado.
+
+    Retorna:
+    str: O texto codificado em Base64.
+    """
+    return base64.b64encode(texto.encode("utf-8")).decode("ascii")
+
+
+def base64_para_texto(s: str) -> str:
+    """
+    Decodifica uma string Base64 como texto UTF-8.
+
+    Parâmetros:
+    s (str): A string Base64 a ser decodificada.
+
+    Retorna:
+    str: O texto original.
+
+    Levanta:
+    ValueError: Se a entrada não for Base64 válida ou não representar UTF-8.
+    """
+    try:
+        dados = base64.b64decode(s.encode("ascii"), validate=True)
+        return dados.decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError, binascii.Error) as erro:
+        raise ValueError("A entrada não é uma Base64 válida em UTF-8.") from erro
+
+
+MORSE: dict[str, str] = {
+    "A": ".-",
+    "B": "-...",
+    "C": "-.-.",
+    "D": "-..",
+    "E": ".",
+    "F": "..-.",
+    "G": "--.",
+    "H": "....",
+    "I": "..",
+    "J": ".---",
+    "K": "-.-",
+    "L": ".-..",
+    "M": "--",
+    "N": "-.",
+    "O": "---",
+    "P": ".--.",
+    "Q": "--.-",
+    "R": ".-.",
+    "S": "...",
+    "T": "-",
+    "U": "..-",
+    "V": "...-",
+    "W": ".--",
+    "X": "-..-",
+    "Y": "-.--",
+    "Z": "--..",
+    "0": "-----",
+    "1": ".----",
+    "2": "..---",
+    "3": "...--",
+    "4": "....-",
+    "5": ".....",
+    "6": "-....",
+    "7": "--...",
+    "8": "---..",
+    "9": "----.",
+    ".": ".-.-.-",
+    ",": "--..--",
+    "?": "..--..",
+    "!": "-.-.--",
+    "'": ".----.",
+    '"': ".-..-.",
+    ":": "---...",
+    ";": "-.-.-.",
+    "(": "-.--.",
+    ")": "-.--.-",
+    "-": "-....-",
+    "/": "-..-.",
+    "@": ".--.-.",
+}
+_MORSE_INVERSO = {codigo: caractere for caractere, codigo in MORSE.items()}
+
+
+def texto_para_morse(texto: str) -> str:
+    """
+    Converte texto para Morse, separando letras por espaço e palavras por
+    `` / ``.
+
+    Parâmetros:
+    texto (str): O texto a ser convertido.
+
+    Retorna:
+    str: O texto convertido para Morse.
+
+    Levanta:
+    ValueError: Se o texto contiver um caractere não presente em MORSE.
+    """
+    palavras = []
+    for palavra in texto.split(" "):
+        codigos = []
+        for caractere in palavra:
+            if _eh_letra_ascii(caractere):
+                caractere = caractere.upper()
+            try:
+                codigos.append(MORSE[caractere])
+            except KeyError as erro:
+                raise ValueError(
+                    f"Caractere não suportado em Morse: {caractere!r}."
+                ) from erro
+        palavras.append(" ".join(codigos))
+    return " / ".join(palavras)
+
+
+def morse_para_texto(s: str) -> str:
+    """
+    Converte Morse para texto, usando `` / `` entre palavras.
+
+    A tabela de decodificação é derivada de MORSE. Letras decodificadas são
+    retornadas em maiúsculas.
+
+    Parâmetros:
+    s (str): O texto em código Morse, com espaços entre letras e `` / ``
+        entre palavras.
+
+    Retorna:
+    str: O texto decodificado em letras maiúsculas.
+
+    Levanta:
+    ValueError: Se um código Morse não estiver presente em MORSE.
+    """
+    palavras = []
+    for palavra in s.split(" / "):
+        caracteres = []
+        for codigo in palavra.split():
+            try:
+                caracteres.append(_MORSE_INVERSO[codigo])
+            except KeyError as erro:
+                raise ValueError(f"Código Morse inválido: {codigo!r}.") from erro
+        palavras.append("".join(caracteres))
+    return " ".join(palavras)
