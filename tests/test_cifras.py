@@ -3,19 +3,28 @@ from io import StringIO
 from unittest.mock import patch
 
 from ghost_wires.cifras import (
+    atbash,
     cesar,
     base64_para_texto,
     base36_para_inteiro,
     deslocar_letra,
     forca_bruta_cesar,
     morse_para_texto,
+    montar_grade,
+    playfair,
+    preparar_digramas,
+    rail_fence,
+    TECLAS,
+    teclado_para_texto,
     texto_para_base64,
     texto_para_morse,
+    texto_para_teclado,
     MORSE,
     numeros_para_texto,
     texto_para_numeros,
     vigenere,
     inteiro_para_base36,
+    inverter,
 )
 from ghost_wires import main
 
@@ -66,6 +75,233 @@ class TestCesar(unittest.TestCase):
         texto = "Hello, World!"
         deslocado = "Khoor, Zruog!"
         self.assertEqual(cesar(texto, 3), deslocado)
+
+
+class TestAtbash(unittest.TestCase):
+    def test_aplicar_duas_vezes_retorna_o_texto_original(self):
+        texto = "Hello, World! 123 Ãç"
+
+        self.assertEqual(atbash(atbash(texto)), texto)
+
+    def test_espelha_as_52_letras_sem_manter_nenhuma_igual(self):
+        letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+        espelhadas = atbash(letras)
+
+        self.assertEqual(
+            espelhadas,
+            "ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvutsrqponmlkjihgfedcba",
+        )
+        self.assertTrue(all(original != resultado for original, resultado in zip(letras, espelhadas)))
+
+    def test_preserva_caixa_e_caracteres_que_nao_sao_letras_ascii(self):
+        self.assertEqual(atbash("aZ b1!é"), "zA y1!é")
+
+
+class TestInverter(unittest.TestCase):
+    def test_aplicar_duas_vezes_retorna_o_original_nos_dois_modos(self):
+        texto = "Um texto\ncom palavras"
+
+        self.assertEqual(inverter(inverter(texto)), texto)
+        self.assertEqual(
+            inverter(inverter(texto, por_palavra=True), por_palavra=True),
+            texto,
+        )
+
+    def test_modo_por_caractere_preserva_tamanho_e_multiconjunto(self):
+        texto = "a a! 22"
+
+        resultado = inverter(texto)
+        self.assertEqual(len(resultado), len(texto))
+        self.assertEqual(sorted(resultado), sorted(texto))
+
+    def test_um_caractere_e_texto_vazio(self):
+        self.assertEqual(inverter("x"), "x")
+        self.assertEqual(inverter("x", por_palavra=True), "x")
+        self.assertEqual(inverter(""), "")
+        self.assertEqual(inverter("", por_palavra=True), "")
+
+    def test_modo_por_palavra_preserva_separadores_repetidos_e_quebras(self):
+        self.assertEqual(
+            inverter("um  dois\n\ttrês", por_palavra=True),
+            "três  dois\n\tum",
+        )
+
+    def test_modo_por_caractere_inverte_pontos_de_codigo_decompostos(self):
+        self.assertEqual(inverter("e\u0301a"), "a\u0301e")
+
+    def test_modo_por_palavra_trata_espaco_nao_separavel_como_separador(self):
+        self.assertEqual(inverter("a\u00a0b c", por_palavra=True), "c\u00a0b a")
+
+    def test_modo_por_palavra_preserva_espacos_nas_bordas(self):
+        self.assertEqual(inverter("  um dois  ", por_palavra=True), "  dois um  ")
+
+    def test_modo_por_palavra_preserva_texto_so_com_espacos(self):
+        texto = " \t  \n"
+
+        self.assertEqual(inverter(texto, por_palavra=True), texto)
+
+
+class TestPlayfair(unittest.TestCase):
+    def test_monta_grade_com_chave_sem_repeticoes_e_sem_j(self):
+        grade = montar_grade("banana")
+        letras = [letra for linha in grade for letra in linha]
+
+        self.assertEqual(len(letras), 25)
+        self.assertEqual(len(set(letras)), 25)
+        self.assertNotIn("J", letras)
+        self.assertEqual(letras[:4], ["B", "A", "N", "C"])
+
+    def test_monta_grade_trata_j_na_chave_como_i(self):
+        letras = [letra for linha in montar_grade("jazz") for letra in linha]
+
+        self.assertEqual(letras[:3], ["I", "A", "Z"])
+        self.assertNotIn("J", letras)
+
+    def test_prepara_digramas_com_filler_e_normalizacao(self):
+        self.assertEqual(preparar_digramas("BALLOON"), ["BA", "LX", "LO", "ON"])
+        self.assertEqual(preparar_digramas("JAZZ"), ["IA", "ZX", "ZX"])
+        self.assertEqual(preparar_digramas("XX"), ["XQ", "XQ"])
+
+        for digrama in preparar_digramas("BALLOON"):
+            self.assertEqual(len(digrama), 2)
+            self.assertNotEqual(digrama[0], digrama[1])
+
+    def test_ida_e_volta_devolve_o_texto_preparado(self):
+        texto_preparado = "".join(preparar_digramas("JAZZ"))
+        cifrado = playfair("JAZZ", "MONARCHY")
+
+        self.assertEqual(playfair(cifrado, "MONARCHY", decifrar=True), texto_preparado)
+
+    def test_vetor_conhecido_com_chave_monarchy(self):
+        self.assertEqual(
+            playfair("instruments", "MONARCHY"),
+            "GATLMZCLRQXA",
+        )
+
+    def test_aplica_as_tres_regras_e_as_desfaz(self):
+        chave = "ABCDEFGHIKLMNOPQRSTUVWXYZ"
+        casos = (("AB", "BC"), ("AF", "FL"), ("AG", "BF"))
+
+        for original, esperado in casos:
+            with self.subTest(original=original):
+                self.assertEqual(playfair(original, chave), esperado)
+                self.assertEqual(
+                    playfair(esperado, chave, decifrar=True),
+                    original,
+                )
+
+    def test_regras_de_linha_e_coluna_fazem_volta_circular(self):
+        chave = "ABCDEFGHIKLMNOPQRSTUVWXYZ"
+
+        for original, esperado in (("AE", "BA"), ("AV", "FA")):
+            with self.subTest(original=original):
+                self.assertEqual(playfair(original, chave), esperado)
+                self.assertEqual(
+                    playfair(esperado, chave, decifrar=True),
+                    original,
+                )
+
+    def test_saida_cifrada_tem_tamanho_par_e_apenas_letras_da_grade(self):
+        cifrado = playfair("Mensagem 123", "chave")
+        letras_da_grade = set("ABCDEFGHIKLMNOPQRSTUVWXYZ")
+
+        self.assertEqual(len(cifrado) % 2, 0)
+        self.assertTrue(set(cifrado) <= letras_da_grade)
+
+    def test_rejeita_chave_vazia_ou_sem_letras(self):
+        for chave in ("", "123!"):
+            with self.subTest(chave=chave), self.assertRaises(ValueError):
+                montar_grade(chave)
+
+    def test_rejeita_texto_de_decifracao_com_tamanho_impar(self):
+        with self.assertRaises(ValueError):
+            playfair("ABC", "chave", decifrar=True)
+
+    def test_texto_sem_letras_e_letras_acentuadas_sao_ignorados(self):
+        self.assertEqual(preparar_digramas("123 !?"), [])
+        self.assertEqual(preparar_digramas("ação"), ["AO"])
+
+    def test_decifracao_de_par_duplicado_eh_aceita(self):
+        self.assertEqual(len(playfair("AA", "chave", decifrar=True)), 2)
+
+
+class TestTeclado(unittest.TestCase):
+    def test_ida_e_volta_devolve_texto_em_maiusculas(self):
+        texto = "Hello World"
+
+        self.assertEqual(
+            teclado_para_texto(texto_para_teclado(texto)),
+            texto.upper(),
+        )
+
+    def test_letras_da_mesma_tecla_continuam_distintas(self):
+        codificado = texto_para_teclado("AB")
+
+        self.assertEqual(codificado, "2 22")
+        self.assertEqual(teclado_para_texto(codificado), "AB")
+
+    def test_tabela_cobre_as_26_letras_uma_vez(self):
+        letras = "".join(TECLAS.values())
+
+        self.assertEqual(len(letras), 26)
+        self.assertEqual(len(set(letras)), 26)
+        self.assertEqual(set(letras), set("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+
+    def test_espaco_entre_palavras_e_separador_de_letras(self):
+        self.assertEqual(texto_para_teclado("A A"), "2 / 2")
+        self.assertEqual(teclado_para_texto("2 / 2"), "A A")
+
+    def test_caractere_fora_da_tabela_informa_o_caractere(self):
+        with self.assertRaisesRegex(ValueError, r"teclado.*'!'"):
+            texto_para_teclado("A!")
+
+    def test_sequencia_de_toques_invalida(self):
+        with self.assertRaisesRegex(ValueError, "Sequência de toques inválida"):
+            teclado_para_texto("0")
+        with self.assertRaisesRegex(ValueError, "Sequência de toques inválida"):
+            teclado_para_texto("2222")
+
+
+class TestRailFence(unittest.TestCase):
+    def test_vetor_conhecido_de_tres_trilhos(self):
+        texto = "WEAREDISCOVEREDFLEEATONCE"
+
+        self.assertEqual(
+            rail_fence(texto, 3),
+            "WECRLTEERDSOEEFEAOCAIVDEN",
+        )
+
+    def test_cifra_e_decifra_para_varios_trilhos(self):
+        for texto in ("", "x", "WE ARE DISCOVERED", "A man, a plan!"):
+            for trilhos in (2, 3, 4, 7):
+                with self.subTest(texto=texto, trilhos=trilhos):
+                    cifrado = rail_fence(texto, trilhos)
+                    self.assertEqual(
+                        rail_fence(cifrado, trilhos, decifrar=True),
+                        texto,
+                    )
+
+    def test_resultado_preserva_os_caracteres(self):
+        texto = "A man, a plan!"
+
+        self.assertEqual(sorted(rail_fence(texto, 3)), sorted(texto))
+
+    def test_trilhos_maiores_ou_iguais_ao_texto_nao_alteram(self):
+        texto = "abc"
+
+        self.assertEqual(rail_fence(texto, 3), texto)
+        self.assertEqual(rail_fence(texto, 10), texto)
+
+    def test_trilhos_invalidos_geram_erro(self):
+        for trilhos in (0, 1, -2):
+            with self.subTest(trilhos=trilhos), self.assertRaises(ValueError):
+                rail_fence("texto", trilhos)
+
+    def test_espacos_e_pontuacao_entram_na_grade(self):
+        texto = "A B!"
+
+        self.assertNotEqual(rail_fence(texto, 2), texto)
+        self.assertEqual(rail_fence(rail_fence(texto, 2), 2, decifrar=True), texto)
 
 
 class TestForcaBruta(unittest.TestCase):
@@ -280,6 +516,8 @@ class TestLinhaDeComando(unittest.TestCase):
         self.assertEqual(codigo, 0)
         for comando in (
             "cesar",
+            "atbash",
+            "inverter",
             "forca-bruta",
             "vigenere",
             "texto-para-numeros",
@@ -303,11 +541,60 @@ class TestLinhaDeComando(unittest.TestCase):
 
     def test_executa_com_texto_da_entrada_padrao(self):
         saida = StringIO()
-        with patch("sys.stdin", StringIO("bom dia")), patch("sys.stdout", saida):
+        with patch("sys.stdin", StringIO("bom dia\n")), patch("sys.stdout", saida):
             codigo = main(["cesar", "-n", "3"])
 
         self.assertEqual(codigo, 0)
         self.assertEqual(saida.getvalue(), "erp gld\n")
+
+    def test_flag_decifrar_do_vigenere(self):
+        saida = StringIO()
+        with patch("sys.stdout", saida):
+            codigo = main(["vigenere", "--chave", "lemon", "--decifrar", "Lxfopv"])
+
+        self.assertEqual(codigo, 0)
+        self.assertEqual(saida.getvalue(), "Attack\n")
+
+    def test_formato_de_saida_da_forca_bruta(self):
+        saida = StringIO()
+        with patch("sys.stdout", saida):
+            codigo = main(["forca-bruta", "wklv"])
+
+        linhas = saida.getvalue().splitlines()
+        self.assertEqual(codigo, 0)
+        self.assertEqual(len(linhas), 26)
+        self.assertIn("1 3 this", linhas)
+        self.assertTrue(all(len(linha.split(" ", 2)) == 3 for linha in linhas))
+
+    def test_remove_o_terminador_de_linha_da_entrada_padrao_em_todos_os_comandos(
+        self,
+    ):
+        casos = (
+            (["cesar", "-n", "3"], "bom dia\n", "erp gld\n"),
+            (["forca-bruta"], "wklv\n", None),
+            (["vigenere", "--chave", "d"], "a\n", "d\n"),
+            (["texto-para-numeros", "--base", "16"], "Ola\n", "4f 6c 61\n"),
+            (["numeros-para-texto", "--base", "16"], "4f 6c 61\n", "Ola\n"),
+            (["base36-para-inteiro"], "9ix\n", "12345\n"),
+            (["texto-para-base64"], "Ola\n", "T2xh\n"),
+            (["base64-para-texto"], "T2zDoQ==\n", "Olá\n"),
+            (["texto-para-morse"], "SOS\n", "... --- ...\n"),
+            (["morse-para-texto"], "... --- ...\n", "SOS\n"),
+        )
+
+        for argumentos, entrada, esperado in casos:
+            with self.subTest(argumentos=argumentos):
+                saida = StringIO()
+                with patch("sys.stdin", StringIO(entrada)), patch(
+                    "sys.stdout", saida
+                ):
+                    codigo = main(argumentos)
+
+                self.assertEqual(codigo, 0)
+                if esperado is not None:
+                    self.assertEqual(saida.getvalue(), esperado)
+                else:
+                    self.assertEqual(len(saida.getvalue().splitlines()), 26)
 
     def test_erro_de_uso_vai_para_stderr_e_retorna_codigo_diferente_de_zero(self):
         erro = StringIO()

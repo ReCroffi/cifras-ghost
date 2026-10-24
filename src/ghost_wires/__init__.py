@@ -2,22 +2,36 @@ import argparse
 import sys
 
 from .cifras import (
+    atbash,
     base36_para_inteiro,
     base64_para_texto,
     cesar,
     forca_bruta_cesar,
     inteiro_para_base36,
+    inverter,
     morse_para_texto,
+    playfair,
     numeros_para_texto,
     texto_para_base64,
     texto_para_morse,
+    teclado_para_texto,
+    texto_para_teclado,
     texto_para_numeros,
     vigenere,
+    rail_fence,
 )
 
 
 def _texto_do_argumento_ou_stdin(texto: str | None) -> str:
-    return sys.stdin.read() if texto is None else texto
+    if texto is not None:
+        return texto
+
+    entrada = sys.stdin.read()
+    if entrada.endswith("\n"):
+        entrada = entrada[:-1]
+        if entrada.endswith("\r"):
+            entrada = entrada[:-1]
+    return entrada
 
 
 def _criar_parser() -> argparse.ArgumentParser:
@@ -29,6 +43,47 @@ def _criar_parser() -> argparse.ArgumentParser:
     cesar_parser = subparsers.add_parser("cesar", help="Aplica a cifra de César.")
     cesar_parser.add_argument("-n", type=int, required=True, help="Deslocamento.")
     cesar_parser.add_argument("texto", nargs="?")
+
+    atbash_parser = subparsers.add_parser(
+        "atbash", help="Aplica a transformação Atbash."
+    )
+    atbash_parser.add_argument("texto", nargs="?")
+
+    inverter_parser = subparsers.add_parser(
+        "inverter", help="Inverte caracteres ou palavras."
+    )
+    inverter_parser.add_argument(
+        "-p",
+        "--por-palavra",
+        action="store_true",
+        help="Inverte a ordem das palavras.",
+    )
+    inverter_parser.add_argument("texto", nargs="?")
+
+    playfair_parser = subparsers.add_parser(
+        "playfair", help="Aplica a cifra de Playfair."
+    )
+    playfair_parser.add_argument("-k", "--chave", required=True)
+    playfair_parser.add_argument(
+        "-d", "--decifrar", action="store_true", help="Decifra o texto."
+    )
+    playfair_parser.add_argument("texto", nargs="?")
+
+    rail_parser = subparsers.add_parser(
+        "rail-fence", help="Aplica a cifra Rail Fence."
+    )
+    rail_parser.add_argument("-t", "--trilhos", type=int, required=True)
+    rail_parser.add_argument(
+        "-d", "--decifrar", action="store_true", help="Decifra o texto."
+    )
+    rail_parser.add_argument("texto", nargs="?")
+
+    for nome, ajuda in (
+        ("texto-para-teclado", "Converte texto para toques telefônicos."),
+        ("teclado-para-texto", "Converte toques telefônicos para texto."),
+    ):
+        teclado_parser = subparsers.add_parser(nome, help=ajuda)
+        teclado_parser.add_argument("texto", nargs="?")
 
     forca_parser = subparsers.add_parser(
         "forca-bruta", help="Tenta decifrar uma cifra de César."
@@ -75,6 +130,29 @@ def _criar_parser() -> argparse.ArgumentParser:
 
 
 def _executar(args: argparse.Namespace) -> str:
+    if args.comando == "atbash":
+        return atbash(_texto_do_argumento_ou_stdin(args.texto))
+    if args.comando == "inverter":
+        return inverter(
+            _texto_do_argumento_ou_stdin(args.texto),
+            por_palavra=args.por_palavra,
+        )
+    if args.comando == "playfair":
+        return playfair(
+            _texto_do_argumento_ou_stdin(args.texto),
+            args.chave,
+            decifrar=args.decifrar,
+        )
+    if args.comando == "rail-fence":
+        return rail_fence(
+            _texto_do_argumento_ou_stdin(args.texto),
+            args.trilhos,
+            decifrar=args.decifrar,
+        )
+    if args.comando == "texto-para-teclado":
+        return texto_para_teclado(_texto_do_argumento_ou_stdin(args.texto))
+    if args.comando == "teclado-para-texto":
+        return teclado_para_texto(_texto_do_argumento_ou_stdin(args.texto))
     if args.comando == "cesar":
         return cesar(_texto_do_argumento_ou_stdin(args.texto), args.n)
     if args.comando == "forca-bruta":
