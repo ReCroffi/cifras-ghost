@@ -137,3 +137,67 @@ def vigenere(texto: str, chave: str, decifrar: bool = False) -> str:
             resultado.append(c)
 
     return "".join(resultado)
+
+
+_FORMATOS_NUMERICOS = {
+    2: "08b",
+    8: "03o",
+    10: "03d",
+    16: "02x",
+}
+
+
+def _validar_base(base: int) -> str:
+    try:
+        return _FORMATOS_NUMERICOS[base]
+    except KeyError as erro:
+        bases_validas = ", ".join(str(base_valida) for base_valida in _FORMATOS_NUMERICOS)
+        raise ValueError(
+            f"A base deve ser uma destas opções: {bases_validas}."
+        ) from erro
+
+
+def texto_para_numeros(texto: str, base: int) -> str:
+    """
+    Converte cada caractere de um texto para seu código numérico na base especificada.
+
+    Parâmetros:
+    texto (str): O texto a ser convertido.
+    base (int): A base numérica para a conversão.
+
+    Retorna:
+    str: Uma string contendo os códigos numéricos de cada caractere na base especificada, separados por espaço.
+
+    Levanta:
+    ValueError: Se a base não for suportada.
+    """
+    formato = _validar_base(base)
+    return " ".join(format(ord(c), formato) for c in texto)
+
+
+def numeros_para_texto(numeros: str, base: int) -> str:
+    """
+    Converte uma string de códigos numéricos na base especificada de volta para texto.
+
+    Parâmetros:
+    numeros (str): Uma string contendo os códigos numéricos separados por espaço.
+    base (int): A base numérica dos códigos.
+
+    Retorna:
+    str: O texto correspondente aos códigos numéricos.
+
+    Levanta:
+    ValueError: Se a base não for suportada.
+    """
+    _validar_base(base)
+
+    resultado = []
+    for numero in numeros.split():
+        try:
+            resultado.append(chr(int(numero, base)))
+        except ValueError as erro:
+            raise ValueError(
+                f"Número inválido {numero!r} na base {base}."
+            ) from erro
+
+    return "".join(resultado)

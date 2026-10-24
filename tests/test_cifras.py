@@ -1,6 +1,13 @@
 import unittest
 
-from ghost_wires.cifras import cesar, deslocar_letra, forca_bruta_cesar, vigenere
+from ghost_wires.cifras import (
+    cesar,
+    deslocar_letra,
+    forca_bruta_cesar,
+    numeros_para_texto,
+    texto_para_numeros,
+    vigenere,
+)
 
 
 class TestDeslocarLetra(unittest.TestCase):
@@ -119,6 +126,50 @@ class TestVigenere(unittest.TestCase):
                 ValueError, "apenas letras ASCII"
             ):
                 vigenere("texto", chave)
+
+
+class TestConversaoNumerica(unittest.TestCase):
+    def test_converte_e_desconverte_nas_quatro_bases(self):
+        for base in (2, 8, 10, 16):
+            with self.subTest(base=base):
+                numeros = texto_para_numeros("ãΩ", base)
+                self.assertEqual(numeros_para_texto(numeros, base), "ãΩ")
+
+    def test_usa_largura_minima_uniforme_por_base(self):
+        esperado = {
+            2: "01000001 01111010",
+            8: "101 172",
+            10: "065 122",
+            16: "41 7a",
+        }
+
+        for base, resultado in esperado.items():
+            with self.subTest(base=base):
+                self.assertEqual(texto_para_numeros("Az", base), resultado)
+
+    def test_nao_trunca_caracteres_acima_de_255(self):
+        esperado = {
+            2: "11100011 1110101001",
+            8: "343 1651",
+            10: "227 937",
+            16: "e3 3a9",
+        }
+
+        for base, resultado in esperado.items():
+            with self.subTest(base=base):
+                self.assertEqual(texto_para_numeros("ãΩ", base), resultado)
+
+    def test_rejeita_base_invalida_na_ida_e_na_volta(self):
+        for base in (3, 12):
+            with self.subTest(base=base):
+                with self.assertRaisesRegex(ValueError, "2, 8, 10, 16"):
+                    texto_para_numeros("A", base)
+                with self.assertRaisesRegex(ValueError, "2, 8, 10, 16"):
+                    numeros_para_texto("41", base)
+
+    def test_rejeita_numero_invalido_com_token_e_base_na_mensagem(self):
+        with self.assertRaisesRegex(ValueError, r"Número inválido 'zz' na base 16"):
+            numeros_para_texto("41 zz", 16)
 
 
 if __name__ == "__main__":
