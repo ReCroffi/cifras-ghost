@@ -7,6 +7,8 @@ from ghost_wires.cifras import (
     numeros_para_texto,
     texto_para_numeros,
     vigenere,
+    base36_para_inteiro,
+    inteiro_para_base36,
 )
 
 
@@ -170,6 +172,42 @@ class TestConversaoNumerica(unittest.TestCase):
     def test_rejeita_numero_invalido_com_token_e_base_na_mensagem(self):
         with self.assertRaisesRegex(ValueError, r"Número inválido 'zz' na base 16"):
             numeros_para_texto("41 zz", 16)
+
+
+class TestBase36(unittest.TestCase):
+    def test_converte_e_desconverte_uma_faixa_de_valores(self):
+        for numero in range(0, 1000):
+            with self.subTest(numero=numero):
+                representacao = inteiro_para_base36(numero)
+                self.assertEqual(int(representacao, 36), numero)
+                self.assertEqual(base36_para_inteiro(representacao), numero)
+
+    def test_conversao_eh_compativel_com_int_na_base_36(self):
+        for numero in (0, 35, 36, 12345, 2**32):
+            representacao = inteiro_para_base36(numero)
+
+            with self.subTest(numero=numero):
+                self.assertEqual(base36_para_inteiro(representacao), int(representacao, 36))
+
+    def test_rejeita_numero_negativo(self):
+        with self.assertRaisesRegex(ValueError, "não-negativo"):
+            inteiro_para_base36(-1)
+
+    def test_aceita_letras_maiusculas_e_minusculas(self):
+        self.assertEqual(base36_para_inteiro("Z1a"), base36_para_inteiro("z1A"))
+
+    def test_rejeita_sinal_kelvin_sem_normalizar_antes(self):
+        with self.assertRaisesRegex(ValueError, "Caractere inválido 'K'"):
+            base36_para_inteiro("\u212a")
+
+    def test_base36_e_depois_cesar(self):
+        codificado = cesar(inteiro_para_base36(12345), 3)
+
+        self.assertEqual(codificado, "9la")
+        self.assertEqual(
+            base36_para_inteiro(cesar(codificado, -3)),
+            12345,
+        )
 
 
 if __name__ == "__main__":

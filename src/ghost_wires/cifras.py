@@ -151,7 +151,9 @@ def _validar_base(base: int) -> str:
     try:
         return _FORMATOS_NUMERICOS[base]
     except KeyError as erro:
-        bases_validas = ", ".join(str(base_valida) for base_valida in _FORMATOS_NUMERICOS)
+        bases_validas = ", ".join(
+            str(base_valida) for base_valida in _FORMATOS_NUMERICOS
+        )
         raise ValueError(
             f"A base deve ser uma destas opções: {bases_validas}."
         ) from erro
@@ -196,8 +198,66 @@ def numeros_para_texto(numeros: str, base: int) -> str:
         try:
             resultado.append(chr(int(numero, base)))
         except ValueError as erro:
-            raise ValueError(
-                f"Número inválido {numero!r} na base {base}."
-            ) from erro
+            raise ValueError(f"Número inválido {numero!r} na base {base}.") from erro
 
     return "".join(resultado)
+
+
+def inteiro_para_base36(n: int) -> str:
+    """
+    Converte um número inteiro para uma string na base 36.
+
+    Parâmetros:
+    n (int): O número inteiro a ser convertido.
+
+    Retorna:
+    str: A representação do número na base 36.
+
+    Levanta:
+    ValueError: Se o número for negativo.
+    """
+    if n < 0:
+        raise ValueError("O número deve ser não-negativo.")
+
+    if n == 0:
+        return "0"
+
+    base36 = ""
+    while n > 0:
+        n, remainder = divmod(n, 36)
+        if remainder < 10:
+            base36 = str(remainder) + base36
+        else:
+            base36 = chr(remainder - 10 + ord("a")) + base36
+
+    return base36
+
+
+def base36_para_inteiro(s: str) -> int:
+    """
+    Converte uma string na base 36 de volta para um número inteiro.
+
+    Parâmetros:
+    s (str): A string na base 36 a ser convertida.
+
+    Retorna:
+    int: O número inteiro correspondente.
+
+    Levanta:
+    ValueError: Se a string for vazia ou contiver um caractere que não seja
+        válido na base 36.
+    """
+    if not s:
+        raise ValueError("A string não pode ser vazia.")
+
+    n = 0
+    for caractere in s:
+        if "0" <= caractere <= "9":
+            n = n * 36 + (ord(caractere) - ord("0"))
+        elif _eh_letra_ascii(caractere):
+            caractere = caractere.lower()
+            n = n * 36 + (ord(caractere) - ord("a") + 10)
+        else:
+            raise ValueError(f"Caractere inválido {caractere!r} na base 36.")
+
+    return n
