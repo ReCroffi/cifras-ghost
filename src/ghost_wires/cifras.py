@@ -224,11 +224,11 @@ def inteiro_para_base36(n: int) -> str:
 
     base36 = ""
     while n > 0:
-        n, remainder = divmod(n, 36)
-        if remainder < 10:
-            base36 = str(remainder) + base36
+        n, resto = divmod(n, 36)
+        if resto < 10:
+            base36 = str(resto) + base36
         else:
-            base36 = chr(remainder - 10 + ord("a")) + base36
+            base36 = chr(resto - 10 + ord("a")) + base36
 
     return base36
 

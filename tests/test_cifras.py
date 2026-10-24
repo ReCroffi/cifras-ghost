@@ -187,6 +187,7 @@ class TestBase36(unittest.TestCase):
             representacao = inteiro_para_base36(numero)
 
             with self.subTest(numero=numero):
+                self.assertEqual(int(representacao, 36), numero)
                 self.assertEqual(base36_para_inteiro(representacao), int(representacao, 36))
 
     def test_rejeita_numero_negativo(self):
@@ -197,8 +198,13 @@ class TestBase36(unittest.TestCase):
         self.assertEqual(base36_para_inteiro("Z1a"), base36_para_inteiro("z1A"))
 
     def test_rejeita_sinal_kelvin_sem_normalizar_antes(self):
-        with self.assertRaisesRegex(ValueError, "Caractere inválido 'K'"):
+        with self.assertRaisesRegex(ValueError, r"Caractere inválido"):
             base36_para_inteiro("\u212a")
+
+    def test_rejeita_entrada_vazia_sinal_e_espaco(self):
+        for entrada in ("", "-1", " "):
+            with self.subTest(entrada=entrada), self.assertRaises(ValueError):
+                base36_para_inteiro(entrada)
 
     def test_base36_e_depois_cesar(self):
         codificado = cesar(inteiro_para_base36(12345), 3)
