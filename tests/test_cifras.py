@@ -1,6 +1,6 @@
 import unittest
 
-from ghost_wires.cifras import cesar, deslocar_letra, forca_bruta_cesar
+from ghost_wires.cifras import cesar, deslocar_letra, forca_bruta_cesar, vigenere
 
 
 class TestDeslocarLetra(unittest.TestCase):
@@ -71,6 +71,54 @@ class TestForcaBruta(unittest.TestCase):
 
         self.assertTrue(all(nota == 0 for nota, _, _ in tentativas))
         self.assertEqual(tentativas[0], (0, 0, cifrado))
+
+
+class TestVigenere(unittest.TestCase):
+    def test_cifra_e_decifra_retorna_o_texto_original(self):
+        texto = "Ataque ao amanhecer! Ãç"
+        cifrado = vigenere(texto, "Chave")
+
+        self.assertEqual(vigenere(cifrado, "chave", decifrar=True), texto)
+
+    def test_decifra_texto_cifrado_conhecido(self):
+        self.assertEqual(
+            vigenere("Lxfopv ef rnhr", "lemon", decifrar=True),
+            "Attack at dawn",
+        )
+
+    def test_chave_de_uma_letra_equivale_a_cesar(self):
+        texto = "Hello, World!"
+
+        self.assertEqual(vigenere(texto, "d"), cesar(texto, 3))
+
+    def test_chave_a_nao_altera_o_texto(self):
+        texto = "Hello, World! 123"
+
+        self.assertEqual(vigenere(texto, "a"), texto)
+
+    def test_ignora_caracteres_que_nao_sao_letras_e_nao_avanca_a_chave(self):
+        texto = "a 1!b"
+
+        self.assertEqual(vigenere(texto, "bc"), "b 1!d")
+
+    def test_chave_maiuscula_e_minuscula_sao_equivalentes(self):
+        texto = "Attack at dawn"
+
+        self.assertEqual(vigenere(texto, "ChAvE"), vigenere(texto, "chave"))
+
+    def test_caracteres_fora_do_ascii_nao_avancam_a_chave(self):
+        self.assertEqual(vigenere("a\u212ab", "bc"), "b\u212ad")
+
+    def test_rejeita_chave_vazia(self):
+        with self.assertRaisesRegex(ValueError, "não pode ser vazia"):
+            vigenere("texto", "")
+
+    def test_rejeita_chave_com_caractere_que_nao_e_letra(self):
+        for chave in ("ab1", "ab cd"):
+            with self.subTest(chave=chave), self.assertRaisesRegex(
+                ValueError, "apenas letras ASCII"
+            ):
+                vigenere("texto", chave)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,10 @@
 import string
 
 
+def _eh_letra_ascii(c: str) -> bool:
+    return len(c) == 1 and c in string.ascii_letters
+
+
 def deslocar_letra(c: str, n: int) -> str:
     """
     Desloca uma letra c por n posições no alfabeto.
@@ -14,7 +18,7 @@ def deslocar_letra(c: str, n: int) -> str:
     Retorna:
     str: O caractere resultante após o deslocamento.
     """
-    if len(c) != 1 or c.lower() not in "abcdefghijklmnopqrstuvwxyz":
+    if not _eh_letra_ascii(c):
         return c
 
     # Determina o ponto de referência (A ou a)
@@ -87,10 +91,49 @@ def forca_bruta_cesar(texto: str) -> list[tuple[int, int, str]]:
     for n in range(26):
         tentativa = cesar(texto, -n)
         palavras = (
-            palavra.strip(string.punctuation).lower()
-            for palavra in tentativa.split()
+            palavra.strip(string.punctuation).lower() for palavra in tentativa.split()
         )
         nota = sum(palavra in PALAVRAS_COMUNS_INGLES for palavra in palavras)
         tentativas.append((nota, n, tentativa))
 
     return sorted(tentativas, key=lambda tentativa: tentativa[0], reverse=True)
+
+
+def vigenere(texto: str, chave: str, decifrar: bool = False) -> str:
+    """
+    Aplica a cifra de Vigenère a um texto, usando uma chave fornecida.
+    Para decifrar o texto, defina decifrar=True.
+
+    Parâmetros:
+    texto (str): O texto a ser cifrado ou decifrado.
+    chave (str): A chave usada para o deslocamento das letras.
+    decifrar (bool): Se True, decifra o texto; caso contrário, cifra.
+
+    Retorna:
+    str: O texto cifrado ou decifrado.
+
+    Levanta:
+    ValueError: Se a chave for vazia ou contiver caracteres que não sejam
+        letras ASCII.
+    """
+    if not chave:
+        raise ValueError("A chave não pode ser vazia.")
+    if not all(_eh_letra_ascii(c) for c in chave):
+        raise ValueError("A chave deve conter apenas letras ASCII.")
+
+    resultado = []
+    chave = chave.lower()
+    indice_chave = 0
+    tamanho_chave = len(chave)
+
+    for c in texto:
+        if _eh_letra_ascii(c):
+            deslocamento = ord(chave[indice_chave % tamanho_chave]) - ord("a")
+            if decifrar:
+                deslocamento = -deslocamento
+            resultado.append(deslocar_letra(c, deslocamento))
+            indice_chave += 1
+        else:
+            resultado.append(c)
+
+    return "".join(resultado)
